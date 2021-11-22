@@ -18,7 +18,8 @@ from ...records.api import RequestEventType
 class RequestEventsService(RecordService):
     """Request Events service."""
 
-    def create(self, identity, request_id, data):
+    #@unit_of_work
+    def create(self, identity, request_id, data, uow=None):
         """Create a request event.
 
         :param request_id: Identifier of the request.
@@ -50,10 +51,7 @@ class RequestEventsService(RecordService):
         )
 
         # Persist record (DB and index)
-        record.commit()
-        db.session.commit()
-        if self.indexer:
-            self.indexer.index(record)
+        uow.register(RecordCommitOp(record))
 
         return self.result_item(
             self,
@@ -77,6 +75,7 @@ class RequestEventsService(RecordService):
             links_tpl=self.links_item_tpl,
         )
 
+    # unit of work
     def update(self, identity, id_, data, revision_id=None):
         """Replace an event."""
         record = self._get_event(id_)
@@ -117,6 +116,7 @@ class RequestEventsService(RecordService):
             links_tpl=self.links_item_tpl,
         )
 
+    # unit of work
     def delete(self, identity, id_, revision_id=None):
         """Delete an event from database and search indexes.
 
@@ -144,7 +144,9 @@ class RequestEventsService(RecordService):
             if self.indexer:
                 self.indexer.index(record, refresh=True)
         else:
-            record.delete()
+            # Probably we should force delete to completely remove the record
+            # and not leave a database row behind.
+            record.delete(force=True)
             db.session.commit()
             if self.indexer:
                 self.indexer.delete(record, refresh=True)
@@ -171,6 +173,7 @@ class RequestEventsService(RecordService):
             permission_action="read_event",
             **kwargs,
         )
+        # Move to params interpreters: params_interpreters_cls and use filter_params?
         if request_id:
             search = search.filter("term", request_id=request_id)
         search_result = search.execute()
@@ -197,6 +200,7 @@ class RequestEventsService(RecordService):
 
         Needed to distinguish between kinds of events.
         """
+        # needs discussion on what is an event type and what is the interface to implement a new one
         if event_type == RequestEventType.COMMENT.value:
             return f"{action}_event_comment"
         elif event_type == RequestEventType.ACCEPTED.value:

@@ -36,10 +36,14 @@ from marshmallow import fields
 
 from ...records.api import RequestEventType
 
+# split configs from resources into two separate models:
+# - events.resources
+# - events.config
 
 #
 # Resource config
 #
+# shorter name: CommentsResourceConfig
 class RequestCommentsResourceConfig(RecordResourceConfig):
     """Request Events resource configuration."""
 
@@ -55,17 +59,22 @@ class RequestCommentsResourceConfig(RecordResourceConfig):
     # WARNING: These "request_*" values have nothing to do with the
     #          "Request" of "RequestEvent". They are related to the Flask
     #          request.
+    # this request_list_view_args and request_list_view_args can be merged into
+    # request_view_args, since non of them are defined as required. main point
+    # here is to parse the values so the are avilabe on the resource_requestctx
     request_list_view_args = {
         "request_id": fields.Str(),
     }
-    request_item_view_args = {
+    request_list_view_args = {
         "request_id": fields.Str(),
         "comment_id": fields.Str(),
     }
     request_search_args = SearchRequestArgsSchema
+    # the default in invenio-records-resources so no need to override
     request_body_parsers = {"application/json": RequestBodyParser(JSONDeserializer())}
 
     # Ouput
+    # the default in invenio-records-resources so no need to override
     response_handlers = {
         "application/json": ResponseHandler(JSONSerializer(), headers=etag_headers),
     }
@@ -74,6 +83,7 @@ class RequestCommentsResourceConfig(RecordResourceConfig):
 #
 # Resource
 #
+# shorter name: CommentsResource
 class RequestCommentsResource(RecordResource):
     """Resource for Request comments for now."""
 
@@ -169,6 +179,7 @@ class RequestCommentsResource(RecordResource):
         """
         params = deepcopy(resource_requestctx.args)
         params["request_id"] = resource_requestctx.view_args["request_id"]
+        # shouldn't defaults be set by the service instead of the resource.
         params.setdefault("sort", "oldest")
         hits = self.service.search(
             identity=g.identity,

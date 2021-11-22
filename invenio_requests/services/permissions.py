@@ -86,6 +86,7 @@ class PermissionPolicy(RecordPermissionPolicy):
 
     # **Request Events Permission policy.**
     # Comments need special cases for some service methods
+    # shorter: can_create_comment
     can_create_event_comment = [Requester(), Reviewers(), SystemProcess()]
     can_update_event_comment = [Commenter(), SystemProcess()]
     # Reviewers too for moderation

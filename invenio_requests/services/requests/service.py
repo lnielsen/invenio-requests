@@ -37,10 +37,14 @@ class RequestsService(RecordService):
         """Wrap schema."""
         return ServiceSchemaWrapper(self, schema)
 
-    def create(self, identity, data, request_type, receiver, creator=None, topic=None):
+
+    # needs unit of work
+    #@unit_of_work
+    def create(self, identity, data, request_type, receiver, creator=None, topic=None, uow=None):
         """Create a record."""
         self.require_permission(identity, "create")
 
+        # add comment why we're not using "self.schema" - because of request type depend schemas
         schema = self._wrap_schema(request_type.marshmallow_schema)
         data, errors = schema.load(
             data,
@@ -58,6 +62,7 @@ class RequestsService(RecordService):
         )
 
         # run components
+        # instead: self.run_components('create', ..args..)
         for component in self.components:
             if hasattr(component, "create"):
                 component.create(
@@ -68,6 +73,7 @@ class RequestsService(RecordService):
                 )
 
         # persist record (DB and index)
+        # needs unit of work: uow.register(RecordCommit(request))
         request.commit()
         db.session.commit()
         if self.indexer:
@@ -89,6 +95,7 @@ class RequestsService(RecordService):
         self.require_permission(identity, "read", record=request)
 
         # run components
+        # ditto
         for component in self.components:
             if hasattr(component, "read"):
                 component.read(identity, record=request)
@@ -121,6 +128,7 @@ class RequestsService(RecordService):
         # TODO check later
         return super().search(identity, es_preference=None, **kwargs)
 
+    # unit of work
     def update(self, id_, identity, data):
         """Replace a request."""
         request = self.record_cls.get_record(id_)
@@ -159,6 +167,7 @@ class RequestsService(RecordService):
             links_tpl=self.links_item_tpl,
         )
 
+    # unit of work
     def delete(self, id_, identity):
         """Delete a request from database and search indexes."""
         request = self.record_cls.get_record(id_)
@@ -195,6 +204,7 @@ class RequestsService(RecordService):
             if not request.is_deleted:
                 self.indexer.index(request)
 
+    # unit of work
     def execute_action(self, identity, id_, action, data):
         """Execute the given action for the request, if possible.
 
@@ -210,6 +220,7 @@ class RequestsService(RecordService):
         if not RequestActions.can_execute(identity, request, action, data):
             raise CannotExecuteActionError(action)
 
+        # uow should be passed in here as well.
         RequestActions.execute(identity, request, action, data)
 
         return self.result_item(

@@ -20,6 +20,7 @@ from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from .dumpers import CalculatedFieldDumperExt, RequestTypeDumperExt
 from .models import RequestEventModel, RequestMetadata
+# import style
 from .systemfields import (
     IdentityField,
     OpenStateCalculatedField,
@@ -38,12 +39,14 @@ class Request(Record):
     dumper = ElasticsearchDumper(
         extensions=[
             CalculatedFieldDumperExt("is_open"),
+            # Do we need to dump? is_expired? at some point the calculated value will not be correct ?
             CalculatedFieldDumperExt("is_expired"),
             RequestTypeDumperExt("request_type"),
         ]
     )
     """Elasticsearch dumper with configured extensions."""
 
+    # should we rename external_id to number in model?
     number = IdentityField("external_id")
     """The request's external identity."""
 
@@ -56,6 +59,7 @@ class Request(Record):
     schema = ConstantField("$schema", "local://requests/request-v1.0.0.json")
     """The JSON Schema to use for validation."""
 
+    # rename to type? implicit that it's for a request: request.type vs request.request_type
     request_type = RequestTypeField("request_type_id")
     """System field for management of the request type.
 
@@ -83,6 +87,9 @@ class Request(Record):
     expires_at = ModelField("expires_at")
     """Expiration date of the request."""
 
+    # could be put on a system field instead:
+    # expires_at = ExpiresAtField("expires_at")
+    # usage: record.expires_at.is_expired() or Record.expired_at.is_expired.(record)
     @property
     def is_expired(self):
         """Check if the Request is expired."""
@@ -134,6 +141,7 @@ class Request(Record):
 class RequestEventType(Enum):
     """Request Event type enum."""
 
+    # How do we extend with other event types?
     COMMENT = "C"
     REMOVED = "R"
     ACCEPTED = "A"

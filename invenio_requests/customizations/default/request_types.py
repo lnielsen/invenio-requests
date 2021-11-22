@@ -75,7 +75,7 @@ class DefaultRequestType(RequestType):
     RequestAction class is instantiated with the current Request object as
     argument.
     """
-
+    # thought: should this be only the payload schema or the entire schema?
     marshmallow_schema = RequestSchema
     """Schema used for de/serialization of requests of this type.
 

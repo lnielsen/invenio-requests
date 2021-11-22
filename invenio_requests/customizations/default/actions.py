@@ -26,6 +26,8 @@ class SubmitAction(RequestAction):
 
     def execute(self, identity, data=None):
         """Execute the request action."""
+        # shouldn't most of this logic not be in the request service isntead.
+        # unit of work
         self.request.status = "open"
 
         request_id = self.request.number

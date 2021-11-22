@@ -9,6 +9,8 @@
 
 """Request Event Schemas."""
 
+# Move schemas to the service it belongs to.
+
 from invenio_records_resources.services.records.schema import BaseRecordSchema
 from marshmallow import fields, missing, validate
 from marshmallow_utils import fields as utils_fields
