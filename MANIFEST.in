@@ -8,20 +8,20 @@
 exclude .dockerignore
 exclude .editorconfig
 exclude .tx/config
-exclude run-tests.sh
 exclude pytest.ini
+exclude run-tests.sh
+include *.rst
+include LICENSE
+prune docs/_build
 prune docs/_build
 prune tests
-
-include *.rst
-prune docs/_build
+recursive-include .github/workflows *.yml
 recursive-include docs *.bat
 recursive-include docs *.py
 recursive-include docs *.rst
 recursive-include docs *.txt
 recursive-include docs Makefile
-recursive-include .github/workflows *.yml
-recursive-include invenio_requests/translations *.po *.pot *.mo
-recursive-include invenio_requests *.py
-recursive-include invenio_requests *.json
 recursive-include invenio_requests *.html
+recursive-include invenio_requests *.json
+recursive-include invenio_requests *.py
+recursive-include invenio_requests/translations *.po *.pot *.mo

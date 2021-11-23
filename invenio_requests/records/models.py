@@ -19,7 +19,7 @@ from sqlalchemy_utils import UUIDType
 class RequestMetadata(db.Model, RecordMetadataBase):
     """Base class for requests of any kind in Invenio."""
 
-    __tablename__ = "requests_metadata"
+    __tablename__ = "request_metadata"
 
     id = db.Column(UUIDType, primary_key=True, default=uuid.uuid4)
 
