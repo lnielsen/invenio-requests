@@ -12,7 +12,7 @@
 from datetime import timezone
 
 from invenio_records_resources.services.records.schema import BaseRecordSchema
-from marshmallow import Schema, fields, missing, validate
+from marshmallow import RAISE, Schema, fields, missing, validate
 from marshmallow_oneofschema import OneOfSchema
 from marshmallow_utils import fields as utils_fields
 
@@ -32,13 +32,16 @@ class EntityReferenceSchema(Schema):
 
 
 class RequestSchema(BaseRecordSchema):
-    """Schema for requests."""
+    """Schema for requests.
+
+    Note that the payload schema is dynamically constructed and injected into
+    this schema.
+    """
 
     number = fields.String(dump_only=True)
     request_type = fields.String()
     title = utils_fields.SanitizedUnicode(default='')
     description = utils_fields.SanitizedUnicode()
-    payload = fields.Dict(dump_only=True)
 
     # routing information can likely be inferred during creation
     created_by = fields.Nested(EntityReferenceSchema)
@@ -51,6 +54,11 @@ class RequestSchema(BaseRecordSchema):
     expires_at = utils_fields.TZDateTime(
         timezone=timezone.utc, format="iso", dump_only=True)
     is_expired = fields.Boolean(dump_only=True)
+
+    class Meta:
+        """Schema meta."""
+
+        unknown = RAISE
 
 
 class ModelFieldStr(fields.Str):
