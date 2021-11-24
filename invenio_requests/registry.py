@@ -39,15 +39,7 @@ class TypeRegistry:
             self.register_type(t)
 
     def register_type(self, type_, force=False):
-        """Register the specified request_type.
-
-        :param request_type: The request type to register.
-        :param as_type: Optional, the name under which to register the type.
-                        If not specified, the request_type name from the
-                        request_class will be taken.
-        :param force: Override already registered type, if there is a
-                      different type already registered with the same name.
-        """
+        """Register the specified request_type."""
         type_id = type_.type_id
         type_name = getattr(type_, 'name', type_id)
 
@@ -59,14 +51,7 @@ class TypeRegistry:
             self._registered_names.setdefault(type_name, type_id)
 
     def lookup(self, type_id, quiet=False, default=None):
-        """Look up a registered type by its id.
-
-        :param type_id: The type name to look up.
-        :param quiet: TODO
-        :param default: The default value to return if no type is found and
-                        quiet is set.
-        :return: The type registered for the name.
-        """
+        """Look up a registered type by its id."""
         if not quiet:
             return self._registered_types[type_id]
 
