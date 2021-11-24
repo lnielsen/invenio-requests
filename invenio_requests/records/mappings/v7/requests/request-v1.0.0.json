@@ -81,7 +81,7 @@
       },
       "payload": {
         "type": "object",
-        "dynamic": true
+        "enabled": false
       },
       "created_by": {
         "type": "object",
