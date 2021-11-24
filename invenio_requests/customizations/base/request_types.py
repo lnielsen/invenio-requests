@@ -15,6 +15,8 @@ TODO explain what can be done here, and how!
 
 from uuid import uuid4
 
+import marshmallow as ma
+
 
 class RequestType:
     """Base class for custom request types."""
@@ -61,12 +63,47 @@ class RequestType:
     argument.
     """
 
-    marshmallow_schema = None
-    """Schema used for de/serialization of requests of this type.
+    payload_schema = None
+    """Schema for supported fields.
 
-    To be overridden in subclasses, if the custom request type follows a
-    different or more specific schema.
+    A dictionary of fields mappings is expected:
+
+    .. code-block:: python
+
+        payload_schema = {
+            "content": fields.String(),
+        }
     """
+
+    def _create_marshmallow_schema(self):
+        """Create a marshmallow schema for this request type."""
+        from invenio_requests.services.schemas import RequestSchema
+
+        # Use a bare schema if no payload
+        if self.payload_schema is None:
+            return RequestSchema
+
+        # Raise on invalid payload keys
+        class PayloadBaseSchema(ma.Schema):
+            class Meta:
+                unknown = ma.RAISE
+
+        return RequestSchema.from_dict({
+            "payload": ma.fields.Nested(
+                # Dynamically create a schema from the fields defined
+                # by the payload schema dict.
+                PayloadBaseSchema.from_dict(self.payload_schema),
+            ),
+        })
+
+
+    @property
+    def marshmallow_schema(self):
+        """Create a schema for the entire request including payload."""
+        if not hasattr(self, '_marshmallow_schema'):
+            self._marshmallow_schema = self._create_marshmallow_schema()
+        return self._marshmallow_schema
+
 
     def generate_external_id(self, request, **kwargs):
         """Generate a new external identifier.
