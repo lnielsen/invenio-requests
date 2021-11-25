@@ -139,7 +139,7 @@ class RequestType:
             cls._marshmallow_schema = cls._create_marshmallow_schema()
         return cls._marshmallow_schema
 
-    def generate_external_id(self, request, **kwargs):
+    def generate_request_number(self, request, **kwargs):
         """Generate a new external identifier.
 
         This method can be overridden in subclasses to create external identifiers
