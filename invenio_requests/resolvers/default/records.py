@@ -12,7 +12,7 @@ from ..base import EntityProxy, EntityResolver
 
 
 class RecordProxy(EntityProxy):
-    """Resolver proxy for a Record entity."""
+    """Resolver proxy for a Record entity using the pid."""
 
     def __init__(self, ref_dict, record_cls):
         """Constructor.
@@ -30,6 +30,15 @@ class RecordProxy(EntityProxy):
     def get_need(self):
         """Return None since Needs are not applicable to records."""
         return None
+
+
+class RecordPKProxy(RecordProxy):
+    """Resolver proxy for a Record entity using the UUID."""
+
+    def _resolve(self):
+        """Resolve the Record from the proxy's reference dict."""
+        id_ = self._parse_ref_dict_id(self._ref_dict)
+        return self.record_cls.get_record(id_)
 
 
 class RecordResolver(EntityResolver):

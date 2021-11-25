@@ -12,7 +12,7 @@
 from invenio_requests.records.models import RequestNumber
 
 
-def test_request_nubmer(app, db):
+def test_request_number(app, db):
     """Test sequence generator."""
     assert RequestNumber.next() == 1
     assert RequestNumber.next() == 2
