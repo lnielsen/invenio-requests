@@ -11,7 +11,10 @@ import uuid
 
 from invenio_db import db
 from invenio_records.models import RecordMetadataBase
+from sqlalchemy import func
 from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.types import String
 from sqlalchemy_utils import UUIDType
 
@@ -46,3 +49,86 @@ class RequestEventModel(db.Model, RecordMetadataBase):
         UUIDType, db.ForeignKey(RequestMetadata.id, ondelete="CASCADE")
     )
     request = db.relationship(RequestMetadata)
+
+
+class SequenceMixin:
+    """Integer sequence generator.
+
+    The purpose of this model is to generate a sequence of integers using the
+    underlying database's auto increment features in a transaction friendly
+    manner.
+
+    The database table have a single column declared as auto-incrementing. To
+    obtain a new value, we insert a row in the table and let the database
+    assign a value to it.
+
+    If two transactions try to insert the same value one will fail/retry.
+
+    Usage:
+
+    .. code-block:: python
+
+        class MySequence(db.Model, SequenceMixin):
+            __table_name__ = "mycounter"
+    """
+
+    @declared_attr
+    def value(cls):
+        """The counter."""
+        return db.Column(
+            db.BigInteger().with_variant(db.Integer, "sqlite"),
+            primary_key=True, autoincrement=True
+        )
+
+    @classmethod
+    def next(cls):
+        """Return next available integer."""
+        try:
+            with db.session.begin_nested():
+                obj = cls()
+                db.session.add(obj)
+        except IntegrityError:  # pragma: no cover
+            with db.session.begin_nested():
+                # Someone has likely modified the table without using the
+                # models API. Let's fix the problem.
+                cls._set_sequence(cls.max())
+                obj = cls()
+                db.session.add(obj)
+        return obj.value
+
+    @classmethod
+    def max(cls):
+        """Get max record identifier."""
+        max_value = db.session.query(func.max(cls.value)).scalar()
+        return max_value if max_value else 0
+
+    @classmethod
+    def _set_sequence(cls, val):
+        """Internal function to reset sequence to specific value.
+
+        Note: this function is for PostgreSQL compatibility.
+
+        :param val: The value to be set.
+        """
+        if db.engine.dialect.name == 'postgresql':  # pragma: no cover
+            db.session.execute(
+                "SELECT setval(pg_get_serial_sequence("
+                "'{0}', 'value'), :newval)".format(
+                    cls.__tablename__), dict(newval=val))
+
+    @classmethod
+    def insert(cls, val):
+        """Insert a record identifier.
+
+        :param val: The value to insert.
+        """
+        with db.session.begin_nested():
+            obj = cls(value=val)
+            db.session.add(obj)
+            cls._set_sequence(cls.max())
+
+
+class RequestNumber(db.Model, SequenceMixin):
+    """Request number sequence model."""
+
+    __tablename__ = "request_number_seq"

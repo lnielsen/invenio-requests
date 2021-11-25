@@ -100,10 +100,21 @@ def upgrade():
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_request_events")),
     )
+    op.create_table(
+        "request_number_seq",
+        sa.Column(
+            "value",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("value", name=op.f("pk_request_number_seq")),
+    )
 
 
 def downgrade():
     """Downgrade database."""
+    op.drop_table("request_number_seq")
     op.drop_table("request_events")
     op.drop_index(
         op.f("ix_request_metadata_number"), table_name="request_metadata"
