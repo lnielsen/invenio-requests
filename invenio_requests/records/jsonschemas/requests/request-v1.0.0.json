@@ -10,7 +10,7 @@
     "id": {
       "$ref": "local://definitions-v1.0.0.json#/identifier"
     },
-    "request_type_id": {
+    "type": {
       "type": "string"
     },
     "title": {

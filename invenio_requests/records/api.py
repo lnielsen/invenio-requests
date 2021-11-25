@@ -42,7 +42,6 @@ class Request(Record):
     dumper = ElasticsearchDumper(
         extensions=[
             CalculatedFieldDumperExt("is_open"),
-            RequestTypeDumperExt("type"),
         ]
     )
     """Elasticsearch dumper with configured extensions."""
@@ -59,7 +58,7 @@ class Request(Record):
     schema = ConstantField("$schema", "local://requests/request-v1.0.0.json")
     """The JSON Schema to use for validation."""
 
-    type = RequestTypeField("request_type_id")
+    type = RequestTypeField("type")
     """System field for management of the request type.
 
     This field manages loading of the correct RequestType classes associated with

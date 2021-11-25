@@ -18,7 +18,7 @@ from ...proxies import current_registry
 class RequestTypeField(SystemField):
     """Systemfield for managing the request type."""
 
-    def __init__(self, key="request_type_id"):
+    def __init__(self, key="type"):
         """Constructor."""
         super().__init__(key)
 

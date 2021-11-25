@@ -57,10 +57,6 @@
       "expires_at": {
         "type": "date"
       },
-      "request_type_id": {
-        "type": "keyword",
-        "index": false
-      },
       "type": {
         "type": "keyword"
       },

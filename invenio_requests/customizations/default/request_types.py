@@ -76,12 +76,3 @@ class DefaultRequestType(RequestType):
     RequestAction class is instantiated with the current Request object as
     argument.
     """
-
-    def generate_request_number(self, request, **kwargs):
-        """Generate a new request number.
-
-        This method can be overridden in subclasses to create request numbers
-        according to a custom schema, using the information associated with the request
-        (e.g. topic, receiver, creator).
-        """
-        return str(uuid4())

@@ -37,7 +37,7 @@ class RequestItem(RecordItem):
     @property
     def id(self):
         """Identity of the request."""
-        return self._request.number
+        return self.id
 
     def __getitem__(self, key):
         """Key a key from the data."""

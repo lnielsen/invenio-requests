@@ -8,9 +8,7 @@
 """Elasticsearch dumpers, for transforming to and from versions to index."""
 
 from .calculated import CalculatedFieldDumperExt
-from .request_types import RequestTypeDumperExt
 
 __all__ = (
     "CalculatedFieldDumperExt",
-    "RequestTypeDumperExt",
 )

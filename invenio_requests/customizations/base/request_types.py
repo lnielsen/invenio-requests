@@ -14,8 +14,7 @@ TODO explain what can be done here, and how!
 """
 
 
-from uuid import uuid4
-
+import base32_lib as base32
 import marshmallow as ma
 
 
@@ -140,18 +139,20 @@ class RequestType:
         return cls._marshmallow_schema
 
     def generate_request_number(self, request, **kwargs):
-        """Generate a new external identifier.
+        """Generate a new request number identifier.
 
         This method can be overridden in subclasses to create external identifiers
         according to a custom schema, using the information associated with the request
         (e.g. topic, receiver, creator).
         """
-        return str(uuid4())
+        from invenio_requests.records.models import RequestNumber
+        return base32.encode(RequestNumber.next())
 
     def __str__(self):
         """Return str(self)."""
-        return self.name
+        # Value used by marshmallow schemas to represent the type.
+        return self.type_id
 
     def __repr__(self):
         """Return repr(self)."""
-        return f"<RequestType '{self.name}'>"
+        return f"<RequestType '{self.type_id}'>"
