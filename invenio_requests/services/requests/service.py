@@ -12,7 +12,11 @@
 
 from invenio_db import db
 from invenio_records_resources.services import RecordService, ServiceSchemaWrapper
-from invenio_records_resources.services.uow import RecordCommitOp, unit_of_work
+from invenio_records_resources.services.uow import (
+    RecordCommitOp,
+    RecordDeleteOp,
+    unit_of_work,
+)
 
 from ...customizations.base import RequestActions
 from ...errors import CannotExecuteActionError
@@ -149,7 +153,8 @@ class RequestsService(RecordService):
             links_tpl=self.links_item_tpl,
         )
 
-    def delete(self, id_, identity):
+    @unit_of_work()
+    def delete(self, id_, identity, uow=None):
         """Delete a request from database and search indexes."""
         request = self.record_cls.get_record(id_)
 
@@ -159,17 +164,13 @@ class RequestsService(RecordService):
         # check permissions
         self.require_permission(identity, "delete", record=request)
 
+        # TODO:
+        # prevent deletion if in open state?
+
         # run components
-        for component in self.components:
-            if hasattr(component, "delete"):
-                component.delete(identity, record=request)
+        self.run_components('delete', uow, identity, record=request)
 
-        request.delete()
-        db.session.commit()
-
-        if self.indexer:
-            self.indexer.delete(request, refresh=True)
-
+        uow.register(RecordDeleteOp(request, indexer=self.indexer))
         return True
 
     def reindex(self, identity, params=None, es_preference=None, **kwargs):
