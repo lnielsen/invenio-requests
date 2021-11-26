@@ -33,6 +33,9 @@
     },
     "created_by": {
       "$ref": "local://requests/definitions-v1.0.0.json#/entity_reference"
+    },
+    "@v": {
+      "type": "string"
     }
   }
 }
