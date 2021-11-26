@@ -16,7 +16,7 @@ from invenio_records_resources.records.api import Record
 from invenio_records_resources.records.systemfields import IndexField
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
-from .dumpers import CalculatedFieldDumperExt, RequestTypeDumperExt
+from .dumpers import CalculatedFieldDumperExt
 from .models import RequestEventModel, RequestMetadata
 from .systemfields import (
     ExpiredStateCalculatedField,
