@@ -114,8 +114,9 @@ class RequestsService(RecordService):
             links_tpl=self.links_item_tpl,
         )
 
-    def update(self, id_, identity, data):
-        """Replace a request."""
+    @unit_of_work()
+    def update(self, id_, identity, data, revision_id=None, uow=None):
+        """Update a request."""
         request = self.record_cls.get_record(id_)
 
         # TODO do we need revisions for requests?
@@ -135,15 +136,9 @@ class RequestsService(RecordService):
         )
 
         # run components
-        for component in self.components:
-            if hasattr(component, "update"):
-                component.update(identity, data=data, record=request)
+        self.run_components("update", data=data, record=request, uow=uow)
 
-        request.commit()
-        db.session.commit()
-
-        if self.indexer:
-            self.indexer.index(request)
+        uow.register(RecordCommitOp(request, indexer=self.indexer))
 
         return self.result_item(
             self,
@@ -168,7 +163,8 @@ class RequestsService(RecordService):
         # prevent deletion if in open state?
 
         # run components
-        self.run_components('delete', uow, identity, record=request)
+        # TODO: fix invenio-records-resources ServiceComponent
+        # self.run_components('delete', uow, identity, record=request)
 
         uow.register(RecordDeleteOp(request, indexer=self.indexer))
         return True

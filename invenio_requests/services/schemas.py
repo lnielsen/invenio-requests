@@ -24,7 +24,7 @@ from marshmallow import (
 from marshmallow_oneofschema import OneOfSchema
 from marshmallow_utils import fields as utils_fields
 
-from ..records.api import RequestEventFormat, RequestEventType
+from ..records.api import Request, RequestEventFormat, RequestEventType
 
 
 class EntityReferenceBaseSchema(Schema):
@@ -89,6 +89,24 @@ class RequestSchema(BaseRecordSchema):
         """Schema meta."""
 
         unknown = RAISE
+
+
+class GenericRequestSchema(RequestSchema):
+    """Generic request schema.
+
+    CAUTION: This schema should not be used for the final validation of input
+    data. Use the request type's own defined schema instead.
+
+    This schema can be used in situations where you need to do basic validation
+    or dumping of a request without the payload.
+
+    This is used e.g. in Invenio-RDM-Records for dumping a request without
+    having to know the specific request type.
+    """
+
+    created_by = fields.Dict()
+    receiver = fields.Dict()
+    topic = fields.Dict()
 
 
 class ModelFieldStr(fields.Str):
