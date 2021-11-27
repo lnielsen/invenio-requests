@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2021 TU Wien.
+# Copyright (C) 2021 CERN.
 #
 # Invenio-Requests is free software; you can redistribute it and/or
 # modify it under the terms of the MIT License; see LICENSE file for more
 # details.
 
 """Resolver for records."""
+
+from sqlalchemy.exc import StatementError
+from sqlalchemy.orm.exc import NoResultFound
 
 from ..base import EntityProxy, EntityResolver
 
@@ -38,7 +42,10 @@ class RecordPKProxy(RecordProxy):
     def _resolve(self):
         """Resolve the Record from the proxy's reference dict."""
         id_ = self._parse_ref_dict_id(self._ref_dict)
-        return self.record_cls.get_record(id_)
+        try:
+            return self.record_cls.get_record(id_)
+        except StatementError as exc:
+            raise NoResultFound() from exc
 
 
 class RecordResolver(EntityResolver):
