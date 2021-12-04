@@ -60,7 +60,11 @@ class RequestsServiceConfig(RecordServiceConfig, RequestsConfigMixin):
     index_dumper = None
 
     # links configuration
-    links_item = {"self": RequestLink("{+api}/requests/{id}")}
+    links_item = {
+        "self": RequestLink("{+api}/requests/{id}"),
+        "comments": RequestLink("{+api}/requests/{id}/comments"),
+        "timeline": RequestLink("{+api}/requests/{id}/timeline"),
+    }
     links_search = pagination_links("{+api}/requests{?args*}")
     action_link = RequestLink(
         "{+api}/requests/{id}/actions/{action}", when=_is_action_available

@@ -226,8 +226,8 @@ def test_only_authenticated_user_can_create_request(
     assert create_request(identity_simple)
 
 
-def test_only_system_can_delete_request(
-        app, identity_simple, identity_stranger,
+def test_only_system_and_creator_can_delete_request(
+        app, identity_simple, identity_stranger, submit_request,
         requests_service, create_request):
     request = create_request(identity_simple)
     request_id = request.id
@@ -235,8 +235,16 @@ def test_only_system_can_delete_request(
     # Stranger
     with pytest.raises(PermissionDeniedError):
         requests_service.delete(identity_stranger, request_id)
-    # Creator
+
+    # Creator CANT delete draft
+    assert requests_service.delete(identity_simple, request_id)
+
+    request = submit_request(identity_simple)
+    request_id = request.id
+
+    # Creator CANNOT delete open/closed
     with pytest.raises(PermissionDeniedError):
-        requests_service.delete(identity_simple, request_id)
+        requests_service.delete(identity_stranger, request_id)
+
     # System
     assert requests_service.delete(system_identity, request_id)

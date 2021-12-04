@@ -195,7 +195,7 @@ class PermissionPolicy(RecordPermissionPolicy):
         Receiver(check=is_open),
         SystemProcess(),
     ]
-    can_delete = [SystemProcess()]
+    can_delete = [Creator(check=is_draft), SystemProcess()]
     # For search, recall that _what_ identities can see is defined by `can_read`
     can_search = [AuthenticatedUser(), SystemProcess()]
 
