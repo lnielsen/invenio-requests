@@ -55,7 +55,7 @@ setup_requires = [
 ]
 
 install_requires = [
-    "invenio-db>=1.0.9,<2.0",
+    "invenio-db>=1.0.11,<2.0",
     f"invenio-records-resources{records_resources_version}",
 ]
 
