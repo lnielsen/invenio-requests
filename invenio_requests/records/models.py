@@ -34,10 +34,6 @@ class RequestMetadata(db.Model, RecordMetadataBase):
         nullable=True,
     )
 
-    # TODO later
-    # labels: maybe per-community CVs
-    # assignees: enables notifications? no impact on permissions
-
 
 class RequestEventModel(db.Model, RecordMetadataBase):
     """Request Events model."""

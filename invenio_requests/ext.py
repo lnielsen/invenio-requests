@@ -9,7 +9,7 @@
 
 """Invenio module for generic and customizable requests."""
 
-import pkg_resources
+from importlib_metadata import entry_points
 
 from . import config
 from .registry import TypeRegistry
@@ -101,6 +101,6 @@ class InvenioRequests:
 
 def register_entry_point(registry, ep_name):
     """Register types from an entry point."""
-    for ep in pkg_resources.iter_entry_points(ep_name):
+    for ep in set(entry_points(group=ep_name)):
         type_cls = ep.load()
         registry.register_type(type_cls())
