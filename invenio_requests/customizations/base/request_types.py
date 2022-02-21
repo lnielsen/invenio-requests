@@ -2,7 +2,6 @@
 #
 # Copyright (C) 2021 - 2022 TU Wien.
 # Copyright (C) 2021 CERN.
-# Copyright (C) 2022 Northwestern University.
 #
 # Invenio-Requests is free software; you can redistribute it and/or modify
 # it under the terms of the MIT License; see LICENSE file for more details.
@@ -20,7 +19,6 @@ import marshmallow as ma
 from invenio_records_resources.services.references import EntityReferenceBaseSchema
 
 from ...proxies import current_requests
-from .permissions import BaseRequestPermissionPolicy
 
 
 class RequestType:
@@ -97,8 +95,6 @@ class RequestType:
             # ...
         }
     """
-
-    permission_policy_cls = BaseRequestPermissionPolicy
 
     @classmethod
     def _create_marshmallow_schema(cls):

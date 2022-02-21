@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2021 CERN.
-# Copyright (C) 2021-2022 Northwestern University.
+# Copyright (C) 2021 Northwestern University.
 # Copyright (C) 2021 TU Wien.
 #
 # Invenio-Requests is free software; you can redistribute it and/or modify it
@@ -18,24 +18,11 @@ from invenio_records_resources.services.uow import (
     unit_of_work,
 )
 
-from ...customizations.base import BaseRequestPermissionPolicy
 from ...records.api import RequestEventType
 
 
 class RequestEventsService(RecordService):
     """Request Events service."""
-
-    def permission_policy(self, action_name, request_type=None, **kwargs):
-        """Factory for a permission policy instance.
-
-        Technically `request_type` should never be None and is only given this
-        signature to align with `require_permission()`.
-        """
-        policy_cls = (
-            request_type.permission_policy_cls if request_type
-            else BaseRequestPermissionPolicy
-        )
-        return policy_cls(action_name, **kwargs)
 
     @unit_of_work()
     def create(self, identity, request_id, data, uow=None):
@@ -47,9 +34,7 @@ class RequestEventsService(RecordService):
         """
         request = self._get_request(request_id)
         permission = self._get_permission("create", data["type"])
-        self.require_permission(
-            identity, permission, request_type=request.type, request=request
-        )
+        self.require_permission(identity, permission, request=request)
 
         # Validate data (if there are errors, .load() raises)
         data, errors = self.schema.load(
@@ -94,9 +79,7 @@ class RequestEventsService(RecordService):
         request = self._get_request(record.request_id)
 
         # Same "read_event" permission for all types of events
-        self.require_permission(
-            identity, "read_event", request_type=request.type, request=request
-        )
+        self.require_permission(identity, "read_event", request=request)
 
         return self.result_item(
             self,
@@ -117,9 +100,7 @@ class RequestEventsService(RecordService):
 
         # Permissions
         permission = self._get_permission("update", record.type)
-        self.require_permission(
-            identity, permission, request_type=request.type, event=record
-        )
+        self.require_permission(identity, permission, event=record)
 
         data, _ = self.schema.load(
             data,
@@ -166,10 +147,7 @@ class RequestEventsService(RecordService):
 
         # Permissions
         permission = self._get_permission("delete", record.type)
-        self.require_permission(
-            identity, permission, request_type=request.type, request=request,
-            event=record
-        )
+        self.require_permission(identity, permission, request=request, event=record)
 
         if record.type == RequestEventType.COMMENT.value:
             record["payload"]["content"] = ""
@@ -201,9 +179,7 @@ class RequestEventsService(RecordService):
 
         # Permissions
         request = self._get_request(request_id) if request_id else None
-        self.require_permission(
-            identity, "search_event", request_type=request.type, request=request
-        )
+        self.require_permission(identity, "search_event", request=request)
 
         # Prepare and execute the search
         search = self._search(

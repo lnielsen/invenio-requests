@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2021 TU Wien.
-# Copyright (C) 2022 Northwestern University.
 #
 # Invenio-Requests is free software; you can redistribute it and/or modify it
 # under the terms of the MIT License; see LICENSE file for more details.
@@ -13,13 +12,11 @@ from invenio_access.permissions import system_identity
 from invenio_records_permissions.generators import AnyUser, SystemProcess
 
 from invenio_requests.customizations import RequestState
-from invenio_requests.customizations.base import (
-    BaseRequestPermissionPolicy,
-    RequestAction,
-)
+from invenio_requests.customizations.base import RequestAction
 from invenio_requests.customizations.default import DefaultRequestType
 from invenio_requests.errors import NoSuchActionError
 from invenio_requests.records.api import Request
+from invenio_requests.services.permissions import PermissionPolicy
 
 variable = False
 
@@ -35,12 +32,6 @@ class TestAction(RequestAction):
         """Execute the action."""
         global variable
         variable = True
-
-
-class CustomPermissionPolicy(BaseRequestPermissionPolicy):
-    """Customized permission policy allowing the test action."""
-
-    can_action_test = [AnyUser(), SystemProcess()]
 
 
 class CustomizedReferenceRequestType(DefaultRequestType):
@@ -60,13 +51,24 @@ class CustomizedReferenceRequestType(DefaultRequestType):
     allowed_receiver_ref_types = ["role", "user"]
     allowed_topic_ref_types = ["record"]
 
-    permission_policy_cls = CustomPermissionPolicy
+
+class CustomPermissionPolicy(PermissionPolicy):
+    """Customized permission policy allowing the test action."""
+
+    can_action_test = [AnyUser(), SystemProcess()]
 
 
 def assert_nested_field_allows_type_key(schema, field_name, type_key, negated=False):
     """Assert that the nested field allows a type key."""
     is_in = type_key in schema._declared_fields[field_name].nested._declared_fields
     return negated != is_in
+
+
+@pytest.fixture(scope="module")
+def app_config(app_config):
+    """Customized App Config."""
+    app_config["REQUESTS_PERMISSION_POLICY"] = CustomPermissionPolicy
+    return app_config
 
 
 @pytest.fixture

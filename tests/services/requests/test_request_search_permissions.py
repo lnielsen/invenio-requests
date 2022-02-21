@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2021 CERN.
-# Copyright (C) 2021-2022 Northwestern University.
+# Copyright (C) 2021 Northwestern University.
 #
 # Invenio-Requests is free software; you can redistribute it and/or
 # modify it under the terms of the MIT License; see LICENSE file for more
 # details.
 
 """Permission tests."""
+import copy
+
 import pytest
 from invenio_access.permissions import system_identity
 from invenio_records_resources.services.errors import PermissionDeniedError

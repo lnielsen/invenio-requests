@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2021 CERN.
-# Copyright (C) 2021-2022 Northwestern University.
+# Copyright (C) 2021 Northwestern University.
 # Copyright (C) 2021 - 2022 TU Wien.
 #
 # Invenio-Requests is free software; you can redistribute it and/or
@@ -10,20 +10,16 @@
 
 """Requests service."""
 
-from functools import reduce
-from itertools import chain
+import re
 
-from elasticsearch_dsl.query import Q
-from invenio_records_resources.config import lt_es7
 from invenio_records_resources.services import RecordService, ServiceSchemaWrapper
 from invenio_records_resources.services.uow import (
     RecordCommitOp,
     RecordDeleteOp,
     unit_of_work,
 )
-from invenio_search import current_search_client
 
-from ...customizations.base import BaseRequestPermissionPolicy, RequestActions
+from ...customizations.base import RequestActions
 from ...errors import CannotExecuteActionError
 from ...proxies import current_events_service, current_registry
 from ...records.api import RequestEventType
@@ -48,28 +44,12 @@ class RequestsService(RecordService):
         """Wrap schema."""
         return ServiceSchemaWrapper(self, schema)
 
-    def permission_policy(self, action_name, request_type=None, **kwargs):
-        """Factory for a permission policy instance.
-
-        Technically `request_type` should never be None and is only given this
-        signature to align with `require_permission()`.
-        """
-        policy_cls = (
-            request_type.permission_policy_cls if request_type
-            else BaseRequestPermissionPolicy
-        )
-        return policy_cls(action_name, **kwargs)
-
     @unit_of_work()
     def create(
-        self, identity, data, request_type, receiver, creator=None, topic=None,
-        permission_args=None, uow=None
+        self, identity, data, request_type, receiver, creator=None, topic=None, uow=None
     ):
         """Create a record."""
-        permission_args = permission_args or {}
-        self.require_permission(
-            identity, "create", request_type=request_type, **permission_args
-        )
+        self.require_permission(identity, "create")
 
         # we're not using "self.schema" b/c the schema may differ per request type!
         schema = self._wrap_schema(request_type.marshmallow_schema())
@@ -120,9 +100,7 @@ class RequestsService(RecordService):
         """Retrieve a request."""
         # resolve and require permission
         request = self.record_cls.get_record(id_)
-        self.require_permission(
-            identity, "read", request_type=request.type, request=request
-        )
+        self.require_permission(identity, "read", request=request)
 
         # run components
         for component in self.components:
@@ -144,9 +122,7 @@ class RequestsService(RecordService):
 
         self.check_revision_id(request, revision_id)
 
-        self.require_permission(
-            identity, "update", request_type=request.type, request=request
-        )
+        self.require_permission(identity, "update", request=request)
 
         # we're not using "self.schema" b/c the schema may differ per request type!
         schema = self._wrap_schema(request.type.marshmallow_schema())
@@ -180,9 +156,7 @@ class RequestsService(RecordService):
         # self.check_revision_id(request, revision_id)
 
         # check permissions
-        self.require_permission(
-            identity, "delete", request_type=request.type, request=request
-        )
+        self.require_permission(identity, "delete", request=request)
 
         # TODO:
         # prevent deletion if in open state?
@@ -219,9 +193,7 @@ class RequestsService(RecordService):
 
         # check permissions
         permission_name = f"action_{action}"
-        self.require_permission(
-            identity, permission_name, request_type=request.type, request=request
-        )
+        self.require_permission(identity, permission_name, request=request)
 
         # Check if the action *can* be executed (i.e. correct status etc.)
         if not action_obj.can_execute(identity):
@@ -254,57 +226,3 @@ class RequestsService(RecordService):
             schema=self._wrap_schema(request.type.marshmallow_schema()),
             links_tpl=self.links_item_tpl,
         )
-
-    def permission_filter(self, identity, action_name):
-        """Generate queries from all request_types <action_name> permissions."""
-        filters = []
-
-        for request_type in current_registry:
-            policy_cls = request_type.permission_policy_cls
-            permission = policy_cls(action_name, identity=identity)
-            filters.append(permission.query_filters)
-
-        if filters:
-            return reduce(
-                lambda q1, q2: q1 | q2,
-                chain.from_iterable(filters)
-            )
-        else:
-            # This is a MatchAll() query
-            return Q()
-
-    def create_search(self, identity, record_cls, search_opts,
-                      permission_action='read', preference=None,
-                      extra_filter=None):
-        """Override search class instantiation.
-
-        Searching over requests means taking into account the permissions of each
-        request_type.
-        """
-        default_filter = self.permission_filter(identity, permission_action)
-
-        # From here down is the same as RecordService.create_search
-        if extra_filter is not None:
-            default_filter = default_filter & extra_filter
-
-        search = search_opts.search_cls(
-            using=current_search_client,
-            default_filter=default_filter,
-            index=record_cls.index.search_alias,
-        )
-
-        search = (
-            search
-            # Avoid query bounce problem
-            .with_preference_param(preference)
-            # Add document version to ES response
-            .params(version=True)
-        )
-
-        # Extras
-        extras = {}
-        if not lt_es7:
-            extras["track_total_hits"] = True
-        search = search.extra(**extras)
-
-        return search
