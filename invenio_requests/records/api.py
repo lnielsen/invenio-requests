@@ -15,7 +15,6 @@ from invenio_records.dumpers import ElasticsearchDumper
 from invenio_records.systemfields import ConstantField, DictField, ModelField
 from invenio_records_resources.records.api import Record
 from invenio_records_resources.records.systemfields import IndexField
-from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from ..customizations.base.states import RequestState as State
 from .dumpers import CalculatedFieldDumperExt
@@ -121,7 +120,7 @@ class RequestEvent(Record):
     # Systemfields
     metadata = None
 
-    schema = ConstantField("$schema", "local://request_events/event-v1.0.0.json")
+    schema = ConstantField("$schema", "local://requestevents/requestevent-v1.0.0.json")
     """The JSON Schema to use for validation."""
 
     request = ModelField(dump=False)
@@ -133,7 +132,8 @@ class RequestEvent(Record):
     type = ModelField("type")
     """The human-readable event type."""
 
-    index = IndexField("request_events-event-v1.0.0", search_alias="request_events")
+    index = IndexField(
+        "requestevents-requestevent-v1.0.0", search_alias="requestevents")
     """The ES index used."""
 
     id = ModelField("id")
