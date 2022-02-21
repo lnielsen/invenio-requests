@@ -11,6 +11,7 @@ exclude .tx/config
 exclude pytest.ini
 exclude run-tests.sh
 include *.rst
+include babel.ini
 include LICENSE
 prune docs/_build
 prune docs/_build
@@ -22,11 +23,10 @@ recursive-include docs *.rst
 recursive-include docs *.txt
 recursive-include docs Makefile
 recursive-include invenio_requests *.html
-recursive-include invenio_requests *.json
-recursive-include invenio_requests *.py
 recursive-include invenio_requests *.js
+recursive-include invenio_requests *.json
 recursive-include invenio_requests *.less
-recursive-include invenio_requests/translations *.po *.pot *.mo
+recursive-include invenio_requests *.mo
 recursive-include invenio_requests *.po
 recursive-include invenio_requests *.pot
-include babel.ini
+recursive-include invenio_requests *.py

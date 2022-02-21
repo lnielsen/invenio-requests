@@ -17,7 +17,8 @@ from .proxies import (
     current_requests_resource,
     current_requests_service,
 )
-from .version import __version__
+
+__version__ = "0.2.5"
 
 __all__ = (
     "__version__",

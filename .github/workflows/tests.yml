@@ -34,20 +34,13 @@ jobs:
           python-version: [3.7, 3.8, 3.9]
           requirements-level: [pypi]
           db-service: [postgresql12]
-          # reenable elasticsearch6,
           search-service: [elasticsearch7]
-          # exclude:
-          # - python-version: 3.8
-          #   search-service: elasticsearch6
-          # - python-version: 3.9
-          #   search-service: elasticsearch6
           include:
           - db-service: postgresql12
-            DB_EXTRAS: "postgresql"
     env:
       DB: ${{ matrix.db-service }}
       SEARCH: ${{ matrix.search-service }}
-      EXTRAS: all,${{ matrix.DB_EXTRAS }},${{ matrix.search-service }}
+      EXTRAS: tests,${{ matrix.search-service }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
