@@ -24,7 +24,7 @@ from invenio_accounts.models import Role
 from invenio_accounts.testutils import login_user_via_session
 from invenio_app.factory import create_api as _create_api
 
-from invenio_requests.customizations import DefaultRequestType
+from invenio_requests.customizations import RequestType
 
 
 @pytest.fixture(scope="module")
@@ -64,9 +64,7 @@ def app_config(app_config):
     app_config[
         "RECORDS_REFRESOLVER_STORE"
     ] = "invenio_jsonschemas.proxies.current_refresolver_store"
-    app_config["REQUESTS_REGISTERED_TYPES"] = [DefaultRequestType()]
-    app_config["COMMUNITIES_ENABLED"] = True
-
+    app_config["REQUESTS_REGISTERED_TYPES"] = [RequestType()]
     return app_config
 
 
@@ -172,7 +170,7 @@ def example_request(identity_simple, request_record_input_data, users):
     item = requests_service.create(
         identity_simple,
         request_record_input_data,
-        DefaultRequestType,
+        RequestType,
         receiver=user2,
         creator=user1,
     )

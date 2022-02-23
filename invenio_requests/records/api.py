@@ -16,8 +16,8 @@ from invenio_records.systemfields import ConstantField, DictField, ModelField
 from invenio_records_resources.records.api import Record
 from invenio_records_resources.records.systemfields import IndexField
 
-from ..customizations.base.states import RequestState as State
-from .dumpers import CalculatedFieldDumperExt
+from ..customizations import RequestState as State
+from .dumpers import CalculatedFieldDumperExt, GrantTokensDumperExt
 from .models import RequestEventModel, RequestMetadata
 from .systemfields import (
     EntityReferenceField,
@@ -45,6 +45,7 @@ class Request(Record):
         extensions=[
             CalculatedFieldDumperExt("is_closed"),
             CalculatedFieldDumperExt("is_open"),
+            GrantTokensDumperExt("created_by", "receiver"),
         ]
     )
     """Elasticsearch dumper with configured extensions."""

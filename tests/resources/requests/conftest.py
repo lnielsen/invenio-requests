@@ -11,7 +11,7 @@
 import pytest
 from invenio_access.permissions import system_identity as sys_id
 
-from invenio_requests.customizations.default import DefaultRequestType
+from invenio_requests.customizations import RequestType
 from invenio_requests.records.api import RequestEventFormat
 
 
@@ -33,13 +33,13 @@ def example_requests(app, users):
 
     u1, u2, u3 = users
     req1 = svc.create(
-        sys_id, {"title": "first"}, DefaultRequestType, receiver=u1, creator=u3
+        sys_id, {"title": "first"}, RequestType, receiver=u1, creator=u3
     )._obj
     req2 = svc.create(
-        sys_id, {"title": "second"}, DefaultRequestType, receiver=u1, creator=u3
+        sys_id, {"title": "second"}, RequestType, receiver=u1, creator=u3
     )._obj
     req3 = svc.create(
-        sys_id, {"title": "third"}, DefaultRequestType, receiver=u2, creator=u3
+        sys_id, {"title": "third"}, RequestType, receiver=u2, creator=u3
     )._obj
 
     # this is needed to make sure that the requests are indexed in time,

@@ -12,7 +12,7 @@
 import pytest
 from invenio_access.permissions import system_identity
 
-from invenio_requests.customizations.default import DefaultRequestType
+from invenio_requests.customizations import RequestType
 from invenio_requests.records.api import (
     RequestEvent,
     RequestEventFormat,
@@ -25,7 +25,7 @@ def test_submit_request(app, identity_simple, submit_request, request_events_ser
     request_id = request.id
     RequestEvent.index.refresh()
 
-    assert "open" == request.status
+    assert "submitted" == request.status
     results = request_events_service.search(identity_simple, request_id)
     assert 1 == results.total
     hits = list(results.hits)
@@ -60,9 +60,7 @@ def test_accept_request(
 
     assert "accepted" == request.status
     results = request_events_service.search(identity_simple, request_id)
-    assert 3 == results.total  # submit comment + accept + comment
-    hits = list(results.hits)
-    assert 1 == len([h for h in hits if RequestEventType.ACCEPTED.value == h["type"]])
+    assert 2 == results.total  # submit comment + comment
 
 
 def test_cancel_request(
@@ -92,9 +90,7 @@ def test_cancel_request(
 
     assert "cancelled" == request.status
     results = request_events_service.search(identity_simple, request_id)
-    assert 2 == results.total  # submit comment + cancel
-    hits = list(results.hits)
-    assert 1 == len([h for h in hits if RequestEventType.CANCELLED.value == h["type"]])
+    assert 1 == results.total  # submit comment
 
 
 def test_decline_request(
@@ -126,9 +122,7 @@ def test_decline_request(
 
     assert "declined" == request.status
     results = request_events_service.search(identity_simple, request_id)
-    assert 3 == results.total  # submit comment + decline + comment
-    hits = list(results.hits)
-    assert 1 == len([h for h in hits if RequestEventType.DECLINED.value == h["type"]])
+    assert 2 == results.total  # submit comment + comment
 
 
 @pytest.fixture()
@@ -137,7 +131,7 @@ def test_default_status(users, request_record_input_data, requests_service):
     request = requests_service.create(
         system_identity,
         request_record_input_data,
-        DefaultRequestType,
+        RequestType,
         receiver=users[1],
         creator=users[0],
     )._request

@@ -12,7 +12,7 @@
 import pytest
 from flask_principal import Identity, Need, UserNeed
 
-from invenio_requests.customizations import DefaultRequestType
+from invenio_requests.customizations import RequestType
 from invenio_requests.proxies import current_requests
 from invenio_requests.records.api import (
     RequestEvent,
@@ -43,7 +43,7 @@ def create_request(users, request_record_input_data, requests_service):
         receiver = receiver or users[1]
         # Need to use the service to get the id
         item = requests_service.create(
-            identity, input_data, DefaultRequestType, receiver=receiver, **kwargs
+            identity, input_data, RequestType, receiver=receiver, **kwargs
         )
         return item._request
 

@@ -9,7 +9,7 @@
 
 from invenio_records_resources.records.systemfields.calculated import CalculatedField
 
-from ...customizations.base.states import RequestState
+from ...customizations import RequestState
 
 
 class RequestStateCalculatedField(CalculatedField):

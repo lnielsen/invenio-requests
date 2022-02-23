@@ -19,7 +19,7 @@ from invenio_records_resources.services.uow import (
     unit_of_work,
 )
 
-from ...customizations.base import RequestActions
+from ...customizations import RequestActions
 from ...errors import CannotExecuteActionError
 from ...proxies import current_events_service, current_registry
 from ...records.api import RequestEventType
@@ -33,7 +33,13 @@ class RequestsService(RecordService):
     @property
     def links_item_tpl(self):
         """Item links template."""
-        return RequestLinksTemplate(self.config.links_item, self.config.action_link)
+        return RequestLinksTemplate(
+            self.config.links_item,
+            self.config.action_link,
+            context={
+                'permission_policy_cls': self.config.permission_policy_cls,
+            }
+        )
 
     @property
     def request_type_registry(self):
@@ -70,7 +76,6 @@ class RequestsService(RecordService):
             if creator is not None
             else ResolverRegistry.reference_identity(identity)
         )
-
         # Run components
         self.run_components(
             "create",
@@ -83,6 +88,9 @@ class RequestsService(RecordService):
             receiver=ResolverRegistry.reference_entity(receiver),
             uow=uow,
         )
+
+        # Get and run the request type's create action.
+        self._execute(identity, request, request_type.create_action, uow)
 
         # persist record (DB and index)
         uow.register(RecordCommitOp(request, indexer=self.indexer))
@@ -100,7 +108,7 @@ class RequestsService(RecordService):
         """Retrieve a request."""
         # resolve and require permission
         request = self.record_cls.get_record(id_)
-        self.require_permission(identity, "read", request=request)
+        self.require_permission(identity, f"read", request=request)
 
         # run components
         for component in self.components:
@@ -122,7 +130,7 @@ class RequestsService(RecordService):
 
         self.check_revision_id(request, revision_id)
 
-        self.require_permission(identity, "update", request=request)
+        self.require_permission(identity, f"update", request=request)
 
         # we're not using "self.schema" b/c the schema may differ per request type!
         schema = self._wrap_schema(request.type.marshmallow_schema())
@@ -156,15 +164,16 @@ class RequestsService(RecordService):
         # self.check_revision_id(request, revision_id)
 
         # check permissions
-        self.require_permission(identity, "delete", request=request)
-
-        # TODO:
-        # prevent deletion if in open state?
+        self.require_permission(identity, f"delete", request=request)
 
         # run components
         self.run_components("delete", identity, record=request, uow=uow)
 
+        # Get and run the request type's create action.
+        self._execute(identity, request, request.type.delete_action, uow)
+
         uow.register(RecordDeleteOp(request, indexer=self.indexer))
+
         return True
 
     def reindex(self, identity, params=None, es_preference=None, **kwargs):
@@ -180,6 +189,15 @@ class RequestsService(RecordService):
             if not request.is_deleted:
                 self.indexer.index(request)
 
+    def _execute(self, identity, request, action, uow):
+        """Internal method to execute a given named action."""
+        action_obj = RequestActions.get_action(request, action)
+
+        if not action_obj.can_execute():
+            raise CannotExecuteActionError(action)
+
+        action_obj.execute(identity, uow)
+
     @unit_of_work()
     def execute_action(self, identity, id_, action, data=None, uow=None):
         """Execute the given action for the request, if possible.
@@ -191,12 +209,13 @@ class RequestsService(RecordService):
         request = self.record_cls.get_record(id_)
         action_obj = RequestActions.get_action(request, action)
 
-        # check permissions
+        # Check permissions - example of permission: can_cancel_submitted
         permission_name = f"action_{action}"
         self.require_permission(identity, permission_name, request=request)
 
-        # Check if the action *can* be executed (i.e. correct status etc.)
-        if not action_obj.can_execute(identity):
+        # Check if the action *can* be executed (i.e. a given state transition
+        # is allowed).
+        if not action_obj.can_execute():
             raise CannotExecuteActionError(action)
 
         # Create action event if defined

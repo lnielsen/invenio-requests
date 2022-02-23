@@ -12,7 +12,6 @@ from datetime import datetime, timedelta
 import pytest
 
 from invenio_requests.customizations import RequestState
-from invenio_requests.customizations.base.request_types import RequestType
 
 
 def test_expired_systemfield(example_request):

@@ -10,266 +10,84 @@
 
 """Request permissions."""
 
-from elasticsearch_dsl import Q
-from flask import current_app
-from invenio_access.permissions import any_user
 from invenio_records_permissions import RecordPermissionPolicy
 from invenio_records_permissions.generators import (
+    AnyUser,
     AuthenticatedUser,
-    Generator,
+    Disable,
     SystemProcess,
 )
 
-
-class RequestCheckGenerator(Generator):
-    """Generator with support for a request check function."""
-
-    def __init__(self, check=None):
-        """Constructor."""
-        super().__init__()
-        self._request_check_fn = check
-
-    def _check_request(self, request):
-        """Perform request check if such a function is defined."""
-        if request is None:
-            return False
-
-        if self._request_check_fn is not None:
-            return self._request_check_fn(request)
-
-        return True
-
-
-def _get_id(identity):
-    """Get string id from identity."""
-    for need in identity.provides:
-        if need.method == 'id':
-            return str(need.value)
-    return ""
-
-
-class Creator(RequestCheckGenerator):
-    """Allows request makers."""
-
-    def __init__(self, check=None, disable_query=False):
-        """Constructor."""
-        super().__init__(check)
-        self.disable_query = disable_query
-
-    def needs(self, request=None, **kwargs):
-        """Enabling Needs."""
-        if request is None:
-            return []
-
-        if self._check_request(request):
-            creator = request.created_by
-            if creator is not None and creator.get_need() is not None:
-                return [creator.get_need()]
-
-        return []
-
-    def query_filter(self, identity=None, **kwargs):
-        """Filters for current identity as owner."""
-        if self.disable_query:
-            return []
-
-        if identity:
-            # We assume creators are users for now
-            user_id = _get_id(identity)
-            return Q("term", **{"created_by.user": user_id})
-        else:
-            return []
-
-
-class Receiver(RequestCheckGenerator):
-    """Allows request Receiver."""
-
-    def __init__(self, check=None, disable_query=False):
-        """Constructor."""
-        super().__init__(check)
-        self.disable_query = disable_query
-
-    def needs(self, request=None, **kwargs):
-        """Enabling Needs.
-
-        record is a request here
-        """
-        if request is None:
-            return []
-
-        if self._check_request(request):
-            need = request.receiver.get_need()
-            if need is not None:
-                return [need]
-
-        return []
-
-    def query_filter(self, identity=None, **kwargs):
-        """Filters for current identity as owner."""
-        if self.disable_query:
-            return []
-
-        # It is up to community module to define community receivers
-        if identity:
-            user_id = _get_id(identity)
-            return Q("term", **{"receiver.user": user_id})
-        else:
-            return []
-
-
-def is_open(request):
-    """Check if the request is open."""
-    return request.is_open
-
-
-def is_not_open(request):
-    """Check if the request is closed or a draft."""
-    return not request.is_open
-
-
-def is_closed(request):
-    """Check if the request is closed."""
-    return request.is_closed
-
-
-def is_not_closed(request):
-    """Check if the request is open or a draft."""
-    return not request.is_closed
-
-
-def is_draft(request):
-    """Check if the request is a draft (neither open nor closed)."""
-    return not request.is_open and not request.is_closed
-
-
-def is_no_draft(request):
-    """Check if the request is not a draft (either open or closed)."""
-    return request.is_open or request.is_closed
-
-
-class Commenter(Generator):
-    """Allows request event commenter."""
-
-    def needs(self, event=None, **kwargs):
-        """Enabling Needs."""
-        return [event.created_by.get_need()]
-
-        # TODO: events also need this kind of structure
-        if event is None:
-            return []
-
-        creator = event.created_by
-        if creator is not None and creator.get_need() is not None:
-            return [creator.get_need()]
-
-        return []
-
-    def query_filter(self, identity=None, **kwargs):
-        """Filters for current identity as creator."""
-        users = [n.value for n in identity.provides if n.method == "id"]
-        if users:
-            return Q("terms", **{"created_by.user": users})
-
-
-class AllowedSearcher(Generator):
-    """Any user that was allowed by the corresponding can_search.
-
-    This is a "cheat" originally created so that Events don't need to be indexed with a
-    corresponding serialized Request. The can_search permission already restricts
-    who can search and in the case of Events, those can see all Events.
-    """
-
-    def query_filter(self, identity=None, **kwargs):
-        """Returns all and counts on service to filter by request_id."""
-        return Q("match_all")
-
-
-class RequestsEnabled(Generator):
-    """Generator to disabled the usage of requests endpoints."""
-
-    def excludes(self, **kwargs):
-        """Preventing Needs."""
-        if not current_app.config.get("COMMUNITIES_ENABLED"):
-            return [any_user]
-        return []
+from .generators import Commenter, Creator, Receiver, Status
 
 
 class PermissionPolicy(RecordPermissionPolicy):
     """Permission policy."""
 
-    # TODO:
-    # - require: if receiver is community AND community restricted:
-    #   community <id> member (delegate to entity?)
-    can_create = [AuthenticatedUser(), SystemProcess(), RequestsEnabled()]
+    # Ability in general to create requests (not which request you can create)
+    can_create = [AuthenticatedUser(), SystemProcess()]
+    # Just about ability to perform a search (not what requests you can access)
+    can_search = [AuthenticatedUser(), SystemProcess()]
+
+    # Read/update/delete action deals with requests in **multiple states**, and
+    # thus must take the request status into account.
     can_read = [
-        Creator(),
-        Receiver(check=is_open),
+        Status(
+            ['created'],
+            [Creator()]
+        ),
+        Status(
+            ['submitted', 'deleted', 'cancelled', 'expired', 'accepted', 'declined'],
+            [Creator(), Receiver()]
+        ),
         SystemProcess(),
-        RequestsEnabled(),
     ]
+
     can_update = [
-        Creator(check=is_not_closed),
-        Receiver(check=is_open),
+        Status(
+            ['created'],
+            [Creator()]
+        ),
+        Status(
+            ['submitted'],
+            [Creator(), Receiver()]
+        ),
         SystemProcess(),
     ]
-    can_delete = [Creator(check=is_draft), SystemProcess(), RequestsEnabled()]
-    # For search, recall that _what_ identities can see is defined by `can_read`
-    can_search = [AuthenticatedUser(), SystemProcess(), RequestsEnabled()]
 
-    # Actions: Submit/Cancel/Accept/Decline/Expire
-    can_action_submit = [
-        Creator(check=is_draft),
+    can_delete = [
+        Status(
+            ['created'],
+            [Creator()]
+        ),
+        Status(
+            ['submitted', 'deleted', 'cancelled', 'expired', 'accepted', 'declined'],
+            [Disable()]
+        ),
         SystemProcess(),
-        RequestsEnabled(),
     ]
-    can_action_cancel = [
-        Creator(check=is_open),
-        SystemProcess(),
-        RequestsEnabled(),
-    ]
-    can_action_accept = [
-        Receiver(check=is_open),
-        SystemProcess(),
-        RequestsEnabled(),
-    ]
-    can_action_decline = [
-        Receiver(check=is_open),
-        SystemProcess(),
-        RequestsEnabled(),
-    ]
+
+    # Submit, cancel, expire, accept and decline actions only deals
+    # with requests in a **single state** and thus doesn't need to take the
+    # request status into account.
+    can_action_submit = [Creator(), SystemProcess()]
+    can_action_cancel = [Creator(), SystemProcess()]
     can_action_expire = [SystemProcess()]
+    can_action_accept = [Receiver(), SystemProcess()]
+    can_action_decline = [Receiver(), SystemProcess()]
 
-    # Request Events: Comments
-    can_create_comment = [
-        Creator(),
-        Receiver(check=is_no_draft),
+    # Request events/comments
+    # Events are in most cases protected by the associated request.
+    can_update_comment = [
+        Commenter(),
         SystemProcess(),
-        RequestsEnabled(),
     ]
-    can_update_comment = [Commenter(), SystemProcess(), RequestsEnabled()]
-    # Might need to revisit
     can_delete_comment = [
         Commenter(),
-        Receiver(),
         SystemProcess(),
-        RequestsEnabled(),
     ]
 
-    # Request Events: All other events
-    can_create_event = [SystemProcess(), RequestsEnabled()]
-    can_read_event = [
-        # this is a search over Events and not Requests so we disable the search
-        Creator(disable_query=True),
-        Receiver(check=is_no_draft, disable_query=True),
-        AllowedSearcher(),
-        SystemProcess(),
-        RequestsEnabled(),
-    ]
-    can_update_event = [SystemProcess(), RequestsEnabled()]
-    can_delete_event = [SystemProcess(), RequestsEnabled()]
-    can_search_event = [
-        Creator(),
-        Receiver(check=is_no_draft),
-        SystemProcess(),
-        RequestsEnabled(),
-    ]
+    # Needed by the search events permission because a permission_action must
+    # be provided to create_search(), but the event search is already protected
+    # by request's can_read, thus we use a dummy permission for the search.
+    can_unused = [AnyUser()]

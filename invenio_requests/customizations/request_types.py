@@ -18,7 +18,17 @@ import base32_lib as base32
 import marshmallow as ma
 from invenio_records_resources.services.references import EntityReferenceBaseSchema
 
-from ...proxies import current_requests
+from ..proxies import current_requests
+from .actions import (
+    AcceptAction,
+    CancelAction,
+    CreateAction,
+    DeclineAction,
+    DeleteAction,
+    ExpireAction,
+    SubmitAction,
+)
+from .states import RequestState
 
 
 class RequestType:
@@ -41,21 +51,43 @@ class RequestType:
     name = "Base Request"
     """The human-readable name for this type of requests."""
 
-    available_statuses = {}
-    """Available statuses for the Request.
+    available_statuses = {
+        "created": RequestState.UNDEFINED,
+        "submitted": RequestState.OPEN,
+        "cancelled": RequestState.CLOSED,
+        "declined": RequestState.CLOSED,
+        "accepted": RequestState.CLOSED,
+        "expired": RequestState.CLOSED,
+        "deleted": RequestState.UNDEFINED,
+    }
+    """Available statuses for the request.
 
     The keys in this dictionary is the set of available statuses, and their
-    values are indicators whether this Request is still considered to be
-    "open" in this state.
+    values are indicators whether this request is considered to be open, closed
+    or undefined.
     """
 
-    default_status = None
-    """The default status for new requests of this type.
+    create_action = "create"
+    """Defines the action that's able to create this request.
 
-    This must be set to one of the available statuses for the custom request type.
+    This must be set to one of the available actions for the custom request type.
     """
 
-    available_actions = {}
+    delete_action = "delete"
+    """Defines the action that's able to create this request.
+
+    This must be set to one of the available actions for the custom request type.
+    """
+
+    available_actions = {
+        "create": CreateAction,
+        "submit": SubmitAction,
+        "delete": DeleteAction,
+        "accept": AcceptAction,
+        "cancel": CancelAction,
+        "decline": DeclineAction,
+        "expire": ExpireAction,
+    }
     """Available actions for this Request.
 
     The keys are the internal identifiers for the actions, the values are
@@ -95,6 +127,21 @@ class RequestType:
             # ...
         }
     """
+
+    needs_context = None
+    """The context for needs.
+
+    This allows a request type to customize which and how needs are generated
+    for a specific entity. For instance which needs are generated for a
+    community entity or system entity.
+    """
+
+    @classmethod
+    def entity_needs(cls, entity):
+        """Generate entity needs for the given entity."""
+        if entity is not None:
+            return entity.get_needs(ctx=cls.needs_context)
+        return []
 
     @classmethod
     def _create_marshmallow_schema(cls):

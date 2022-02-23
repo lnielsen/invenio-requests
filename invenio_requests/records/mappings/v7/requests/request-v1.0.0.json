@@ -90,6 +90,9 @@
       "receiver": {
         "type": "object",
         "dynamic": true
+      },
+      "grants": {
+        "type": "keyword"
       }
     }
   }

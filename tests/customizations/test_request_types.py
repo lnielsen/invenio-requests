@@ -11,9 +11,13 @@ import pytest
 from invenio_access.permissions import system_identity
 from invenio_records_permissions.generators import AnyUser, SystemProcess
 
-from invenio_requests.customizations import RequestState
-from invenio_requests.customizations.base import RequestAction
-from invenio_requests.customizations.default import DefaultRequestType
+from invenio_requests.customizations import (
+    CreateAction,
+    RequestAction,
+    RequestState,
+    RequestType,
+)
+from invenio_requests.customizations.actions import CreateAction
 from invenio_requests.errors import NoSuchActionError
 from invenio_requests.records.api import Request
 from invenio_requests.services.permissions import PermissionPolicy
@@ -21,12 +25,15 @@ from invenio_requests.services.permissions import PermissionPolicy
 variable = False
 
 
+class CustomCreateAction(CreateAction):
+    status_from = None
+    status_to = "not_closed"
+
+
 class TestAction(RequestAction):
     """Test action."""
-
-    def can_execute(self, identity):
-        """Check if the action can be executed."""
-        return True
+    status_from = ["not_closed"]
+    status_to = "closed"
 
     def execute(self, identity, uow):
         """Execute the action."""
@@ -34,17 +41,20 @@ class TestAction(RequestAction):
         variable = True
 
 
-class CustomizedReferenceRequestType(DefaultRequestType):
+class CustomizedReferenceRequestType(RequestType):
     """Custom request type with different set of allowed reference types."""
 
     type_id = "customized-reference-request"
 
-    available_actions = {"test": TestAction}
+    available_actions = {
+        "custom-create": CustomCreateAction,
+        "test": TestAction
+    }
     available_statuses = {
         "not_closed": RequestState.OPEN,
         "closed": RequestState.CLOSED,
     }
-    default_status = "not_closed"
+    create_action = "custom-create"
 
     creator_can_be_none = True
     allowed_creator_ref_types = ["community"]
@@ -78,7 +88,7 @@ def customized_app(app):
     requests_ext = app.extensions["invenio-requests"]
     registry = requests_ext.request_type_registry
     registry.register_type(CustomizedReferenceRequestType)
-    registry.register_type(DefaultRequestType)
+    registry.register_type(RequestType)
     return app
 
 
@@ -96,7 +106,7 @@ def test_customized_reference_types(customized_app):
     }
 
     # check if the default schema accepts the first dataset but rejects the second
-    schema = DefaultRequestType.marshmallow_schema()
+    schema = RequestType.marshmallow_schema()
     assert_nested_field_allows_type_key(schema, "created_by", "community", negated=True)
     assert_nested_field_allows_type_key(schema, "receiver", "role", negated=True)
     assert_nested_field_allows_type_key(schema, "topic", "record", negated=True)
@@ -134,14 +144,14 @@ def test_customized_request_actions(customized_app, users):
     assert variable
 
     # check that none of the other actions are available
-    for action in DefaultRequestType.available_actions:
+    for action in RequestType.available_actions:
         with pytest.raises(NoSuchActionError):
             service.execute_action(system_identity, request.id, action)
 
 
 def test_customized_statuses(customized_app):
     """Test if the set of available statuses can be customized properly."""
-    default_req = Request.create({}, type=DefaultRequestType)
+    default_req = Request.create({}, type=RequestType)
     custom_req = Request.create({}, type=CustomizedReferenceRequestType)
 
     # check that there's no overlap

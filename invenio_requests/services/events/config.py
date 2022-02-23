@@ -48,10 +48,6 @@ class RequestEventsServiceConfig(RecordServiceConfig, ConfiguratorMixin):
     )
     schema = RequestEventSchema
     record_cls = RequestEvent
-    components = [
-        DataComponent,
-        EntityReferencesComponent,  # only used for created_by
-    ]
     result_item_cls = RequestEventItem
 
     # ResultItem configurations

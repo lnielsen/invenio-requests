@@ -98,10 +98,8 @@ def test_delete_non_comment(
         )
         event_id = item.id
 
-        request_events_service.delete(system_identity, event_id)
-
-        with pytest.raises(NoResultFound):
-            request_events_service.read(system_identity, event_id)
+        with pytest.raises(PermissionError):
+            request_events_service.delete(system_identity, event_id)
 
 
 def test_update_keeps_type(identity_simple, events_service_data, example_request):

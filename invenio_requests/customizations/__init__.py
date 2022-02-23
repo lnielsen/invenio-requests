@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2021 CERN.
+# Copyright (C) 2021-2022 CERN.
 # Copyright (C) 2021 TU Wien.
 #
 # Invenio-Requests is free software; you can redistribute it and/or modify it
@@ -8,13 +8,33 @@
 
 """Invenio module for generic and customizable requests."""
 
-from .base import RequestAction, RequestState
-from .base import RequestType as BaseRequestType
-from .default import DefaultRequestType
+from .actions import (
+    AcceptAction,
+    CancelAction,
+    CreateAction,
+    CreateAndSubmitAction,
+    DeclineAction,
+    DeleteAction,
+    ExpireAction,
+    RequestAction,
+    RequestActions,
+    SubmitAction,
+)
+from .request_types import RequestType
+from .states import RequestState
 
 __all__ = (
-    "BaseRequestType",
-    "DefaultRequestType",
+    "AcceptAction",
+    "CancelAction",
+    "CreateAction",
+    "CreateAndSubmitAction",
+    "DeclineAction",
+    "DeleteAction",
+    "ExpireAction",
     "RequestAction",
+    "RequestAction",
+    "RequestActions",
     "RequestState",
+    "RequestType",
+    "SubmitAction",
 )

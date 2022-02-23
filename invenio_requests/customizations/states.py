@@ -16,4 +16,4 @@ class RequestState(Enum):
 
     OPEN = "open"
     CLOSED = "closed"
-    NEITHER = "neither"
+    UNDEFINED = "undefined"

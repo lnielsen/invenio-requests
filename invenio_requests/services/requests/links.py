@@ -27,6 +27,8 @@ class RequestLinksTemplate(LinksTemplate):
         links["actions"] = {}
         link = self._action_link
         for action in req.type.available_actions:
+            if action in [req.type.create_action, req.type.delete_action]:
+                continue
             ctx = self.context.copy()
             ctx["action"] = action
             ctx["identity"] = identity

@@ -38,26 +38,11 @@ class RequestDataComponent(DataComponent):
 
     def update(self, identity, data=None, record=None, **kwargs):
         """Update an existing record (request)."""
-        # Clear any top-level field not set in the data.
-        # Note: This ensures that if a user removes a top-level key, then we
-        # also remove it from the record (since record.update() doesn't take
-        # care of this). Removal of subkeys is not an issue as the
-        # record.update() will update the top-level key.
-        schema = record.type.marshmallow_schema()
-        fields = set(schema().fields.keys())
-        data_fields = set(data.keys())
-        for f in fields - data_fields:
-            if f in record:
-                del record[f]
-        # Update the remaining keys.
-        record.update(data)
-        # Clear None values from the record.
-        record.clear_none()
+        if record.status == 'created':
+            keys = ('title', 'description', 'payload', 'receiver', 'topic')
+        else:
+            keys = ('title', 'description')
 
-
-class DefaultStatusComponent(ServiceComponent):
-    """Component for initializing the default status of the request."""
-
-    def create(self, identity, data=None, record=None, **kwargs):
-        """Initialize the default status of the request."""
-        record.status = record.type.default_status
+        for k in keys:
+            if k in data:
+                record[k] = data[k]

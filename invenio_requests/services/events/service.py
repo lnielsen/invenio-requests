@@ -9,14 +9,11 @@
 
 """RequestEvents Service."""
 
+from elasticsearch_dsl import Q
 from invenio_access.permissions import system_process
 from invenio_records_resources.services import RecordService
 from invenio_records_resources.services.base.links import LinksTemplate
-from invenio_records_resources.services.uow import (
-    RecordCommitOp,
-    RecordDeleteOp,
-    unit_of_work,
-)
+from invenio_records_resources.services.uow import RecordCommitOp, unit_of_work
 
 from ...records.api import RequestEventType
 
@@ -33,8 +30,8 @@ class RequestEventsService(RecordService):
         :param dict data: Input data according to the data schema.
         """
         request = self._get_request(request_id)
-        permission = self._get_permission("create", data["type"])
-        self.require_permission(identity, permission, request=request)
+        # If you can read the request you can create events for the request.
+        self.require_permission(identity, "read", request=request)
 
         # Validate data (if there are errors, .load() raises)
         data, errors = self.schema.load(
@@ -42,34 +39,22 @@ class RequestEventsService(RecordService):
             context={"identity": identity},
         )
 
-        # It's the components that save the actual data in the record.
-        record = self.record_cls.create(
+        event = self.record_cls.create(
             {},
             request=request.model,
             request_id=str(request_id),
             type=data["type"],
         )
-
-        creator = self._get_creator(identity)
-
-        # Run components
-        self.run_components(
-            "create",
-            identity=identity,
-            record=record,
-            request=request,
-            data=data,
-            created_by=creator,
-            uow=uow,
-        )
+        event.update(data)
+        event.created_by = self._get_creator(identity)
 
         # Persist record (DB and index)
-        uow.register(RecordCommitOp(record, indexer=self.indexer))
+        uow.register(RecordCommitOp(event, indexer=self.indexer))
 
         return self.result_item(
             self,
             identity,
-            record,
+            event,
             links_tpl=self.links_item_tpl,
         )
 
@@ -78,8 +63,7 @@ class RequestEventsService(RecordService):
         record = self._get_event(id_)
         request = self._get_request(record.request_id)
 
-        # Same "read_event" permission for all types of events
-        self.require_permission(identity, "read_event", request=request)
+        self.require_permission(identity, "read", request=request)
 
         return self.result_item(
             self,
@@ -90,96 +74,65 @@ class RequestEventsService(RecordService):
 
     @unit_of_work()
     def update(self, identity, id_, data, revision_id=None, uow=None):
-        """Update an event (except for type)."""
-        record = self._get_event(id_)
-        request = self._get_request(record.request.id)
-        # this service method doesn't allow type change
-        data["type"] = record.type
+        """Update a comment (only comments can be updated)."""
+        event = self._get_event(id_)
+        request = self._get_request(event.request.id)
+        self.require_permission(
+            identity, "update_comment", request=request, event=event)
+        self.check_revision_id(event, revision_id)
 
-        self.check_revision_id(record, revision_id)
+        if event.type != RequestEventType.COMMENT.value:
+            raise PermissionError("You cannot update events.")
 
-        # Permissions
-        permission = self._get_permission("update", record.type)
-        self.require_permission(identity, permission, event=record)
-
+        data['type'] = RequestEventType.COMMENT.value
         data, _ = self.schema.load(
             data,
             context=dict(
                 identity=identity,
-                record=record,
+                record=event,
             ),
         )
-
-        # Run components
-        self.run_components(
-            "update",
-            identity=identity,
-            record=record,
-            data=data,
-            uow=uow,
-        )
-
-        uow.register(RecordCommitOp(record, indexer=self.indexer))
+        event['payload']['content'] = data['payload']['content']
+        event['payload']['format'] = data['payload']['format']
+        uow.register(RecordCommitOp(event, indexer=self.indexer))
 
         return self.result_item(
             self,
             identity,
-            record,
+            event,
             links_tpl=self.links_item_tpl,
         )
 
     @unit_of_work()
     def delete(self, identity, id_, revision_id=None, uow=None):
-        """Delete an event from database and search indexes.
-
-        Deleting a comment is wiping the content and marking it deleted.
-        Deleting an accepted/cancelled/declined is just wiping the content.
-        Deleting another event is really deleting them.
-
-        We may want to add a parameter to assert a kind of event is deleted
-        to prevent the weird semantic of using the comments REST API to
-        delete an event (which is only possible for an admin anyway).
-        """
-        record = self._get_event(id_)
-        request = self._get_request(record.request_id)
-
-        self.check_revision_id(record, revision_id)
+        """Delete a a comment (only comments can be deleted)."""
+        event = self._get_event(id_)
+        request = self._get_request(event.request_id)
 
         # Permissions
-        permission = self._get_permission("delete", record.type)
-        self.require_permission(identity, permission, request=request, event=record)
+        self.require_permission(
+            identity, "delete_comment", request=request, event=event)
+        self.check_revision_id(event, revision_id)
 
-        if record.type == RequestEventType.COMMENT.value:
-            record["payload"]["content"] = ""
-            record.type = RequestEventType.REMOVED.value
-            uow.register(
-                RecordCommitOp(record, indexer=self.indexer,
-                               index_refresh=True)
-            )
-        else:
-            uow.register(
-                RecordDeleteOp(
-                    record, force=True, indexer=self.indexer,
-                    index_refresh=True
-                )
-            )
+        if event.type != RequestEventType.COMMENT.value:
+            raise PermissionError("You cannot delete events.")
 
-        # Even though we don't always completely remove the RequestEvent
-        # we return as though we did.
+        event["payload"]["content"] = ""
+        event.type = RequestEventType.REMOVED.value
+
+        uow.register(
+            RecordCommitOp(event, indexer=self.indexer)
+        )
         return True
 
-    def search(self, identity, request_id, params=None, es_preference=None,
-               **kwargs):
-        """Search for events matching the querystring.
-
-        Request_id is optional.
-        """
+    def search(self, identity, request_id, params=None, es_preference=None, **kwargs):
+        """Search for events for a given request matching the querystring."""
         params = params or {}
         params.setdefault("sort", "oldest")
 
-        # Permissions
-        request = self._get_request(request_id) if request_id else None
-        self.require_permission(identity, "search_event", request=request)
+        # Permissions - guarded by the request's can_read.
+        request = self._get_request(request_id)
+        self.require_permission(identity, "read", request=request)
 
         # Prepare and execute the search
         search = self._search(
@@ -187,11 +140,10 @@ class RequestEventsService(RecordService):
             identity,
             params,
             es_preference,
-            permission_action="read_event",
+            permission_action="unused",
+            extra_filter=Q("term", request_id=str(request_id)),
             **kwargs,
         )
-        if request_id:
-            search = search.filter("term", request_id=str(request_id))
         search_result = search.execute()
 
         return self.result_list(
@@ -211,27 +163,6 @@ class RequestEventsService(RecordService):
     def request_cls(self):
         """Get associated request class."""
         return self.config.request_cls
-
-    def _get_permission(self, action, event_type):
-        """Get associated permission.
-
-        Needed to distinguish between kinds of events.
-        """
-        if (
-            (event_type == RequestEventType.COMMENT.value)
-            and (action in ["create", "update", "delete"])
-        ):
-            return f"{action}_comment"
-
-        if action == "create":
-            if event_type == RequestEventType.ACCEPTED.value:
-                return "action_accept"
-            elif event_type == RequestEventType.DECLINED.value:
-                return "action_decline"
-            elif event_type == RequestEventType.CANCELLED.value:
-                return "action_cancel"
-
-        return f"{action}_event"
 
     def _get_request(self, request_id):
         """Get associated request."""

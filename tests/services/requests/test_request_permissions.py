@@ -14,6 +14,7 @@ import pytest
 from invenio_access.permissions import system_identity
 from invenio_records_resources.services.errors import PermissionDeniedError
 
+from invenio_requests.errors import CannotExecuteActionError
 from invenio_requests.records.api import RequestEventFormat
 
 
@@ -135,7 +136,7 @@ def test_creator_and_receiver_can_read_open_request(
     assert requests_service.read(identity_simple, request_id)
 
 
-def test_only_creator_can_read_expired_request(
+def test_creator_and_receiver_can_read_expired_request(
         app, identity_simple, identity_simple_2, identity_stranger,
         requests_service, requests_service_action_input_data, submit_request):
     request = submit_request(identity_simple)
@@ -146,8 +147,7 @@ def test_only_creator_can_read_expired_request(
     with pytest.raises(PermissionDeniedError):
         requests_service.read(identity_stranger, request_id)
     # Receiver
-    with pytest.raises(PermissionDeniedError):
-        requests_service.read(identity_simple_2, request_id)
+    assert requests_service.read(identity_simple_2, request_id)
     # Creator
     assert requests_service.read(identity_simple, request_id)
 
@@ -158,6 +158,7 @@ def update_input(request):
     del data["version_id"]
     del data["uuid"]
     del data["$schema"]
+    del data["grants"]
     data["title"] = "Updated title"
     return data
 
@@ -236,7 +237,7 @@ def test_only_system_and_creator_can_delete_request(
     with pytest.raises(PermissionDeniedError):
         requests_service.delete(identity_stranger, request_id)
 
-    # Creator CANT delete draft
+    # Creator CAN delete draft
     assert requests_service.delete(identity_simple, request_id)
 
     request = submit_request(identity_simple)
@@ -246,5 +247,6 @@ def test_only_system_and_creator_can_delete_request(
     with pytest.raises(PermissionDeniedError):
         requests_service.delete(identity_stranger, request_id)
 
-    # System
-    assert requests_service.delete(system_identity, request_id)
+    # System CAN, but action doesn't allow
+    with pytest.raises(CannotExecuteActionError):
+        assert requests_service.delete(system_identity, request_id)

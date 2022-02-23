@@ -28,9 +28,4 @@ class RequestStatusField(SystemField):
             # access by class
             return self
 
-        status = self.get_dictkey(record)
-        if status is None:
-            statuses = list(record.type.available_statuses.keys())
-            status = statuses[0] if statuses else None
-
-        return status
+        return self.get_dictkey(record)

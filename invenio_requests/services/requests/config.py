@@ -15,12 +15,11 @@ from invenio_records_resources.services.records.links import pagination_links
 
 from invenio_requests.services.requests import facets
 
-from ...customizations.base import RequestActions
+from ...customizations import RequestActions
 from ...records.api import Request
 from ..configurator import ConfiguratorMixin, FromConfig
 from ..permissions import PermissionPolicy
 from .components import (
-    DefaultStatusComponent,
     EntityReferencesComponent,
     RequestDataComponent,
     RequestNumberComponent,
@@ -34,7 +33,10 @@ def _is_action_available(request, context):
     """Check if the given action is available on the request."""
     action = context.get("action")
     identity = context.get("identity")
-    return RequestActions.can_execute(identity, request, action)
+    permission_policy_cls = context.get('permission_policy_cls')
+    permission = permission_policy_cls(f"action_{action}", request=request)
+    return RequestActions.can_execute(request, action) and \
+        permission.allows(identity)
 
 
 class RequestSearchOptions(SearchOptions):
@@ -83,7 +85,6 @@ class RequestsServiceConfig(RecordServiceConfig, ConfiguratorMixin):
     components = [
         # Order of components are important!
         RequestDataComponent,
-        DefaultStatusComponent,
         EntityReferencesComponent,
         RequestNumberComponent,
     ]

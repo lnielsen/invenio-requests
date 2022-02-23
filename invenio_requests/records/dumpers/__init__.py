@@ -8,7 +8,9 @@
 """Elasticsearch dumpers, for transforming to and from versions to index."""
 
 from .calculated import CalculatedFieldDumperExt
+from .granttokens import GrantTokensDumperExt
 
 __all__ = (
     "CalculatedFieldDumperExt",
+    "GrantTokensDumperExt",
 )

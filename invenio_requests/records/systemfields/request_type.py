@@ -11,7 +11,7 @@ import inspect
 
 from invenio_records.systemfields import SystemField
 
-from ...customizations.base import RequestType
+from ...customizations import RequestType
 from ...proxies import current_registry
 
 

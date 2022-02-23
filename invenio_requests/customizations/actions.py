@@ -8,7 +8,7 @@
 
 """Base class for customizable actions on requests."""
 
-from ...errors import NoSuchActionError
+from ..errors import NoSuchActionError
 
 
 class RequestAction:
@@ -17,7 +17,7 @@ class RequestAction:
     status_from = None
     """Required status of a request to run this action."""
 
-    status_to = 'draft'
+    status_to = 'created'
     """Status after execution of the action."""
 
     event_type = None
@@ -27,16 +27,18 @@ class RequestAction:
         """Constructor."""
         self.request = request
 
-    def can_execute(self, identity):
+    def can_execute(self):
         """Check whether the action can be executed.
 
-        This is mostly intended to be a hook for checking prerequisites
-        (think, for instance, CI/CD pipeline runs).
-        :param identity: The identity of the executor.
+        This checks if a given state transition for a request is allowed or
+        not.
+
         :return: True if the action can be executed, False otherwise.
         """
-        return self.status_from is None or \
-            self.request.status in self.status_from
+        if self.status_from is None:
+            return self.request.status is None
+        else:
+            return self.request.status in self.status_from
 
     def execute(self, identity, uow):
         """Execute the request action.
@@ -63,14 +65,73 @@ class RequestActions:
             raise NoSuchActionError(action=action_name)
 
     @classmethod
-    def can_execute(cls, identity, request, action_name):
-        """Check wether identity and request can execute action.
+    def can_execute(cls, request, action_name):
+        """Check whether an action can be executed.
 
         Perhaps data is sometimes useful for that check, so also included.
         """
-        return cls.get_action(request, action_name).can_execute(identity)
+        return cls.get_action(request, action_name).can_execute()
 
     @classmethod
     def execute(cls, identity, request, action_name, uow):
         """Have identity execute on request the action with the data."""
         return cls.get_action(request, action_name).execute(identity, uow)
+
+
+#
+# Specific actions
+#
+class CreateAction(RequestAction):
+    """Create a request."""
+
+    status_from = None
+    status_to = 'created'
+
+
+class CreateAndSubmitAction(RequestAction):
+    """Create and submit a request."""
+
+    status_from = None
+    status_to = 'submitted'
+
+
+class DeleteAction(RequestAction):
+    """Delete a request."""
+
+    status_from = ['created']
+    status_to = 'deleted'
+
+
+class SubmitAction(RequestAction):
+    """Submit a request."""
+
+    status_from = ['created']
+    status_to = 'submitted'
+
+
+class AcceptAction(RequestAction):
+    """Decline a request."""
+
+    status_from = ['submitted']
+    status_to = 'accepted'
+
+
+class DeclineAction(RequestAction):
+    """Decline a request."""
+
+    status_from = ['submitted']
+    status_to = 'declined'
+
+
+class CancelAction(RequestAction):
+    """Cancel a request."""
+
+    status_from = ['submitted']
+    status_to = 'cancelled'
+
+
+class ExpireAction(RequestAction):
+    """Expire a request."""
+
+    status_from = ['submitted']
+    status_to = 'expired'

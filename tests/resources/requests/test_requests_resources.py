@@ -92,7 +92,7 @@ def test_empty_comment(
     client = client_logged_as("admin@example.org")
     r1, r2, r3 = example_requests
     for r in [r1, r2, r3]:
-        r.status = "open"
+        r.status = "submitted"
         r.commit()
 
     # Accept (valid for other actions too) no payload is Ok
@@ -116,7 +116,7 @@ def test_empty_comment(
     assert 400 == response.status_code
 
     response = client.get(f"/requests/{r3.id}", headers=headers)
-    assert "open" == response.json["status"]
+    assert "submitted" == response.json["status"]
 
 
 def test_create_is_disallowed(app, client_logged_as, headers, request_resource_data):
@@ -139,11 +139,11 @@ def test_simple_request_flow(app, client_logged_as, headers, example_request):
         "id": id_,
         "number": example_request.number,
         "title": "Foo bar",
-        "type": "default-request",
+        "type": "base-request",
         "created_by": {"user": "1"},
         "receiver": {"user": "2"},
         "topic": None,
-        "status": "draft",
+        "status": "created",
         "is_open": False,
         "is_closed": False,
         "expires_at": None,
@@ -164,15 +164,13 @@ def test_simple_request_flow(app, client_logged_as, headers, example_request):
     response = client.post(url[len("https://127.0.0.1:5000/api") :], headers=headers)
     expected_data.update(
         {
-            "status": "open",
+            "status": "submitted",
             "is_open": True,
             "links": {
                 "self": f"https://127.0.0.1:5000/api/requests/{id_}",
                 "timeline": f"https://127.0.0.1:5000/api/requests/{id_}/timeline",
                 "comments": f"https://127.0.0.1:5000/api/requests/{id_}/comments",
                 "actions": {
-                    "accept": f"https://127.0.0.1:5000/api/requests/{id_}/actions/accept",  # noqa
-                    "decline": f"https://127.0.0.1:5000/api/requests/{id_}/actions/decline",  # noqa
                     "cancel": f"https://127.0.0.1:5000/api/requests/{id_}/actions/cancel",  # noqa
                 },
             },
@@ -197,18 +195,3 @@ def test_simple_request_flow(app, client_logged_as, headers, example_request):
         }
     )
     assert_api_response(response, 200, expected_data)
-
-
-def test_disabled_endpoints(app, client_logged_as, headers, example_request):
-    app.config["COMMUNITIES_ENABLED"] = False
-    client = client_logged_as("user1@example.org")
-    id_ = str(example_request.id)
-
-    response = client.get(f"/requests/{id_}", headers=headers)
-    assert response.status_code == 403
-
-    response = client.post(f"/requests/{id_}/actions/submit", headers=headers)
-    assert response.status_code == 403  # id not found
-
-    response = client.post(f"/requests/{id_}/actions/cancel", headers=headers)
-    assert response.status_code == 403  # id not found

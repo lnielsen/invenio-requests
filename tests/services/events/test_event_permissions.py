@@ -63,7 +63,7 @@ def test_only_commenter_can_update_comment(
     )
 
 
-def test_only_commenter_and_receiver_can_delete_comment(
+def test_only_commenter_can_delete_comment(
         app, identity_simple, identity_simple_2, identity_stranger,
         request_events_service, events_service_data, example_request):
     request_id = example_request.id
@@ -80,7 +80,8 @@ def test_only_commenter_and_receiver_can_delete_comment(
     with pytest.raises(PermissionDeniedError):
         request_events_service.delete(identity_stranger, comment_id_1)
     # Receiver
-    request_events_service.delete(identity_simple_2, comment_id_1)
+    with pytest.raises(PermissionDeniedError):
+        request_events_service.delete(identity_simple_2, comment_id_1)
     # Commenter
     assert request_events_service.delete(identity_simple, comment_id_2)
 

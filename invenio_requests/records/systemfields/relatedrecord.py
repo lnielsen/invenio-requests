@@ -18,11 +18,13 @@ class AttrProxy:
     if available, instead of quering the database for the related record.
     """
 
-    def __init__(self, record_cls, record, data):
+    def __init__(self, record_cls, record, data, attrs=None):
         """Initialize the attribute proxy."""
         self._data = data
+        self._attrs = attrs or []
         self._id = record.id if record else data['id']
         self._record = record
+        self._record_shim = None
         self._record_cls = record_cls
 
     def get_object(self):
@@ -31,18 +33,31 @@ class AttrProxy:
             self._record = self._record_cls.get_record(self._id)
         return self._record
 
+    def get_object_shim(self):
+        """Get a record shim.
+
+        The object shim is used for accessing attributes where we want the
+        the proxied record's system field to be invoked. E.g. ``request.type``.
+        """
+        if self._record_shim is None:
+            self._record_shim = self._record_cls(self._data)
+        return self._record_shim
+
     def __getattr__(self, attr):
         """Attribute access."""
         if self._record is None:
-            if attr in self._data:
-                return self._data[attr]
+            if attr == 'id':
+                return self._id
+            if attr in self._attrs:
+                shim = self.get_object_shim()
+                return getattr(shim, attr)
             self._record = self._record_cls.get_record(self._id)
         return getattr(self._record, attr)
 
     def __getitem__(self, attr):
         """Item access."""
         if self._record is None:
-            if attr in self._data:
+            if attr in self._attrs or attr == 'id':
                 return self._data[attr]
             self._record = self._record_cls.get_record(self._id)
         return self._record[attr]
@@ -66,6 +81,10 @@ class RelatedRecord(SystemField):
         self._dump_keys = keys or []
         self._dump_attrs = attrs or []
         super().__init__(*args, **kwargs)
+
+    @property
+    def _proxy_attrs(self):
+        return set(self._dump_keys + self._dump_attrs)
 
     #
     # Life-cycle hooks
@@ -126,9 +145,19 @@ class RelatedRecord(SystemField):
 
         # Set value
         if isinstance(record_or_id, str):
-            proxy = AttrProxy(self._record_cls, None, {'id': record_or_id})
+            proxy = AttrProxy(
+                self._record_cls,
+                None,
+                {'id': record_or_id},
+                attrs=self._proxy_attrs
+            )
         elif isinstance(record_or_id, self._record_cls):
-            proxy = AttrProxy(self._record_cls, record_or_id, None)
+            proxy = AttrProxy(
+                self._record_cls,
+                record_or_id,
+                None,
+                attrs=self._proxy_attrs
+            )
         elif isinstance(record_or_id, AttrProxy):
             proxy = record_or_id
         else:
@@ -143,7 +172,12 @@ class RelatedRecord(SystemField):
 
         data = self.get_dictkey(record)
         if data is not None:
-            proxy = AttrProxy(self._record_cls, None, data)
+            proxy = AttrProxy(
+                self._record_cls,
+                None,
+                data,
+                attrs=self._proxy_attrs
+            )
             self._set_cache(record, proxy)
         else:
             proxy = None
