@@ -48,16 +48,21 @@ def create_ui_blueprint(app):
         static_folder='../static'
     )
 
-    blueprint.add_url_rule(
-        routes["details"],
-        view_func=requests_detail,
-    )
+    if current_app.config('COMMUNITIES_ENABLED', False):
+        blueprint.add_url_rule(
+            routes["details"],
+            view_func=requests_detail,
+        )
 
-    # Register error handlers
-    blueprint.register_error_handler(
-        PermissionDeniedError, record_permission_denied_error)
-    blueprint.register_error_handler(PIDDeletedError,
-                                     record_tombstone_error)
-    blueprint.register_error_handler(PIDDoesNotExistError, not_found_error)
+        # Register error handlers
+        blueprint.register_error_handler(
+            PermissionDeniedError,
+            record_permission_denied_error,
+        )
+        blueprint.register_error_handler(
+            PIDDeletedError,
+            record_tombstone_error,
+        )
+        blueprint.register_error_handler(PIDDoesNotExistError, not_found_error)
 
     return blueprint
