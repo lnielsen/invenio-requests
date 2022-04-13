@@ -52,7 +52,8 @@ class RequestsService(RecordService):
 
     @unit_of_work()
     def create(
-        self, identity, data, request_type, receiver, creator=None, topic=None, uow=None
+        self, identity, data, request_type, receiver, creator=None, topic=None,
+        expires_at=None, uow=None
     ):
         """Create a record."""
         self.require_permission(identity, "create")
@@ -69,6 +70,7 @@ class RequestsService(RecordService):
         request = self.record_cls.create(
             {},
             type=request_type,
+            expires_at=expires_at,
         )
 
         creator = (
