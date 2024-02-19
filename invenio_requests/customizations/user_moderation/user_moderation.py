@@ -8,6 +8,7 @@
 
 from invenio_i18n import lazy_gettext as _
 from invenio_users_resources.proxies import current_users_service
+from marshmallow import ValidationError
 
 from invenio_requests.customizations import RequestType, actions
 
@@ -18,7 +19,11 @@ class DeclineUserAction(actions.DeclineAction):
     def execute(self, identity, uow):
         """Executes block action."""
         user = self.request.topic.resolve()
-        current_users_service.block(identity, user.id, uow=uow)
+        try:
+            current_users_service.block(identity, user.id, uow=uow)
+        except ValidationError:
+            # User already blocked so just ignore
+            pass
         super().execute(identity, uow)
 
 
@@ -28,7 +33,11 @@ class AcceptUserAction(actions.AcceptAction):
     def execute(self, identity, uow):
         """Executes approve action."""
         user = self.request.topic.resolve()
-        current_users_service.approve(identity, user.id, uow=uow)
+        try:
+            current_users_service.approve(identity, user.id, uow=uow)
+        except ValidationError:
+            # User already approved so just ignore
+            pass
         super().execute(identity, uow)
 
 
